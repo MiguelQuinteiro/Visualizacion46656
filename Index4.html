@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cubo 3D de Puntos</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        .label {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+            pointer-events: none;
+            display: none;
+        }
+        .point-label {
+            position: absolute;
+            color: white;
+            background-color: black;
+            padding: 2px 5px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #controls input {
+            width: 50px;
+            margin: 5px;
+        }
+        #toggleButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="controls">
+        <div>Ingrese números de grillas de solución:</div>
+        <input type="number" id="grilla1" value="1">
+        <input type="number" id="grilla2" value="6340">
+        <input type="number" id="grilla3" value="12793">
+        <input type="number" id="grilla4" value="18214">
+        <input type="number" id="grilla5" value="24667">
+        <input type="number" id="grilla6" value="31006">
+        <input type="number" id="grilla7" value="31301">
+        <input type="number" id="grilla8" value="37703">
+        <input type="number" id="grilla9" value="43973">
+        <button id="toggleButton">Visualizar Grilla Solucion</button>
+    </div>
+    <div id="label" class="label"></div>
+    <div id="label1" class="point-label"></div>
+    <div id="label2" class="point-label"></div>
+    <div id="label3" class="point-label"></div>
+    <div id="label4" class="point-label"></div>
+    <div id="label5" class="point-label"></div>
+    <div id="label6" class="point-label"></div>
+    <div id="label7" class="point-label"></div>
+    <div id="label8" class="point-label"></div>
+    <script>
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        var colors = [
+            0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x800080, 0x008000
+        ];
+
+        var geometry = new THREE.BufferGeometry();
+        var vertices = [];
+        var colorsArray = [];
+        var groupIndices = [];
+        var labels = [];
+
+        for (var i = 0; i < 46656; i++) {
+            var groupIndex = Math.floor(i / 5184);
+            var color = new THREE.Color(colors[groupIndex]);
+            var x = (i % 36) - 18;
+            var y = (Math.floor(i / 36) % 36) - 18;
+            var z = (Math.floor(i / (36 * 36))) - 18;
+
+            vertices.push(x, y, z);
+            colorsArray.push(color.r, color.g, color.b);
+            groupIndices.push(groupIndex);
+            labels.push(`Grupo ${groupIndex + 1}, Grilla ${i % 5184 + 1}`);
+        }
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorsArray, 3));
+
+        var material = new THREE.PointsMaterial({ vertexColors: true, size: 0.2 });
+        var points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 50;
+
+        var solutionIndices = [];
+        var solutionLines = [];
+        var isShowingSolutionOnly = false;
+        var labelsDiv = [
+            document.getElementById('label1'),
+            document.getElementById('label2'),
+            document.getElementById('label3'),
+            document.getElementById('label4'),
+            document.getElementById('label5'),
+            document.getElementById('label6'),
+            document.getElementById('label7'),
+            document.getElementById('label8'),
+            document.getElementById('label9')
+        ];
+
+        function getSolutionIndices() {
+            var solutionGrillas = [
+                parseInt(document.getElementById('grilla1').value),
+                parseInt(document.getElementById('grilla2').value),
+                parseInt(document.getElementById('grilla3').value),
+                parseInt(document.getElementById('grilla4').value),
+                parseInt(document.getElementById('grilla5').value),
+                parseInt(document.getElementById('grilla6').value),
+                parseInt(document.getElementById('grilla7').value),
+                parseInt(document.getElementById('grilla8').value),
+                parseInt(document.getElementById('grilla9').value),
+            ];
+
+            solutionIndices = [];
+            for (var i = 0; i < 46656; i++) {
+                if (solutionGrillas.includes(i + 1)) {
+                    solutionIndices.push(i);
+                }
+            }
+        }
+
+        function updateLabels() {
+            if (isShowingSolutionOnly) {
+                for (var i = 0; i < solutionIndices.length; i++) {
+                    var index = solutionIndices[i];
+                    var position = new THREE.Vector3(vertices[index * 3], vertices[index * 3 + 1], vertices[index * 3 + 2]);
+                    var projectedPosition = position.clone().project(camera);
+                    var x = (projectedPosition.x * 0.5 + 0.5) * window.innerWidth;
+                    var y = (projectedPosition.y * -0.5 + 0.5) * window.innerHeight;
+                    labelsDiv[i].style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
+                    labelsDiv[i].style.display = 'block';
+                    labelsDiv[i].innerText = `Grilla ${index + 1}`;
+                }
+            } else {
+                labelsDiv.forEach(label => label.style.display = 'none');
+            }
+        }
+
+        function toggleSolutionView() {
+            getSolutionIndices();
+            isShowingSolutionOnly = !isShowingSolutionOnly;
+
+            if (isShowingSolutionOnly) {
+                // Apagar todos los puntos excepto los de la solución
+                for (var i = 0; i < 46656; i++) {
+                    if (!solutionIndices.includes(i)) {
+                        geometry.attributes.color.setXYZ(i, 0, 0, 0);
+                    }
+                }
+
+                // Crear líneas que conectan todos los puntos de la solución
+                solutionLines.forEach(line => scene.remove(line)); // Limpiar líneas previas
+                solutionLines = [];
+                for (let i = 0; i < solutionIndices.length; i++) {
+                    for (let j = i + 1; j < solutionIndices.length; j++) {
+                        const lineGeometry = new THREE.BufferGeometry();
+                        const posArray = [
+                            vertices[solutionIndices[i] * 3], vertices[solutionIndices[i] * 3 + 1], vertices[solutionIndices[i] * 3 + 2],
+                            vertices[solutionIndices[j] * 3], vertices[solutionIndices[j] * 3 + 1], vertices[solutionIndices[j] * 3 + 2]
+                        ];
+                        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(posArray, 3));
+                        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        solutionLines.push(line);
+                        scene.add(line);
+                    }
+                }
+            } else {
+                // Restaurar todos los puntos
+                for (var i = 0; i < 46656; i++) {
+                    var groupIndex = groupIndices[i];
+                    var color = new THREE.Color(colors[groupIndex]);
+                    geometry.attributes.color.setXYZ(i, color.r, color.g, color.b);
+                }
+
+                // Eliminar las líneas de conexión
+                solutionLines.forEach(line => scene.remove(line));
+                solutionLines = [];
+            }
+
+            geometry.attributes.color.needsUpdate = true;
+            updateLabels();
+        }
+
+        document.getElementById("toggleButton").addEventListener("click", toggleSolutionView);
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        var label = document.getElementById('label');
+
+        function onMouseMove(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            var intersects = raycaster.intersectObject(points);
+
+            if (intersects.length > 0) {
+                var intersect = intersects[0];
+                var index = intersect.index;
+                label.style.left = (event.clientX + 5) + 'px';
+                label.style.top = (event.clientY + 5) + 'px';
+                label.style.display = 'block';
+                label.innerText = labels[index];
+            } else {
+                label.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateLabels();
+        });
+
+        window.addEventListener('mousemove', onMouseMove, false);
+
+        var animate = function () {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateLabels();
+            renderer.render(scene, camera);
+        };
+
+        animate();
+    </script>
+</body>
+</html>
