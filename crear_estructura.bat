@@ -5,6 +5,7 @@ mkdir examples
 type nul > "examples\.gitkeep"
 
 mkdir results
-type nul > "results\.gitkeep"
+:: Movemos los archivos Index que ya existen a results
+move Index*.html results/
 
-echo Estructura creada correctamente.
+echo Estructura creada y archivos movidos correctamente.
